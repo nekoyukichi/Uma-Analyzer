@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { Button } from "@/components/ui/button";
 
 export default function HomePage() {
@@ -11,9 +13,11 @@ export default function HomePage() {
           過去レースデータから傾向を可視化し、
           次のレース予想に役立てるための競馬分析ダッシュボードです。
         </p>
-        <Button size="lg" className="mt-2">
-          分析を始める
-        </Button>
+        <Link href="/races">
+          <Button size="lg" className="mt-2">
+            分析を始める
+          </Button>
+        </Link>
       </div>
     </main>
   );
