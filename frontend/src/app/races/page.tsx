@@ -70,7 +70,12 @@ export default async function RacesPage() {
                     </TableCell>
                     <TableCell className="font-medium">
                       <div className="flex flex-col">
-                        <span>{r.race_name}</span>
+                        <Link
+                          href={`/races/${r.race_id}`}
+                          className="hover:underline underline-offset-4"
+                        >
+                          {r.race_name}
+                        </Link>
                         <span className="text-xs text-muted-foreground font-mono">
                           {r.race_id}
                         </span>

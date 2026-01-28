@@ -28,4 +28,19 @@ export async function fetchAllRaces(): Promise<RaceRow[]> {
   return data ?? [];
 }
 
+export async function fetchRaceById(id: string): Promise<RaceRow | null> {
+  const supabase = createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("races")
+    .select(
+      "race_id, held_on, race_name, course, track_type, distance_m, race_class, weather, track_condition, raw_source_url"
+    )
+    .eq("race_id", id)
+    .maybeSingle();
+
+  if (error) throw new Error(`Failed to fetch race: ${error.message}`);
+  return data ?? null;
+}
+
 
