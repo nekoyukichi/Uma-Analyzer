@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Allow running as `python app/scrapers/test_race_scraper.py` from backend/.
+if __package__ is None or __package__ == "":
+    sys.path.append(str(Path(__file__).resolve().parents[2]))
+
 from app.scrapers.race_scraper import parse_race_results, rows_to_dataframe
 
 
@@ -41,5 +48,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-

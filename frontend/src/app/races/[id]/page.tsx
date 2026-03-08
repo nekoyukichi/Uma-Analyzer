@@ -28,7 +28,37 @@ export default async function RaceDetailPage({
 }: {
   params: { id: string };
 }) {
-  const race = await fetchRaceById(params.id);
+  let race: Awaited<ReturnType<typeof fetchRaceById>> = null;
+  let loadError: string | null = null;
+
+  try {
+    race = await fetchRaceById(params.id);
+  } catch (error) {
+    loadError =
+      error instanceof Error
+        ? error.message
+        : "レースデータの取得に失敗しました。";
+  }
+
+  if (loadError) {
+    return (
+      <main className="min-h-screen bg-background text-foreground">
+        <div className="mx-auto max-w-4xl px-4 py-10 space-y-4">
+          <h1 className="text-2xl font-bold tracking-tight">レース詳細</h1>
+          <p className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            データの取得に失敗しました: {loadError}
+          </p>
+          <Link
+            href="/races"
+            className="inline-block text-sm text-muted-foreground hover:text-foreground underline underline-offset-4"
+          >
+            ← 一覧へ戻る
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
   if (!race) notFound();
 
   return (
@@ -107,5 +137,3 @@ export default async function RaceDetailPage({
     </main>
   );
 }
-
-

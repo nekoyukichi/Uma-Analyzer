@@ -24,7 +24,17 @@ function formatDateJa(isoDate: string) {
 }
 
 export default async function RacesPage() {
-  const races = await fetchAllRaces();
+  let races: Awaited<ReturnType<typeof fetchAllRaces>> = [];
+  let loadError: string | null = null;
+
+  try {
+    races = await fetchAllRaces();
+  } catch (error) {
+    loadError =
+      error instanceof Error
+        ? error.message
+        : "レースデータの取得に失敗しました。";
+  }
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -45,6 +55,11 @@ export default async function RacesPage() {
         </div>
 
         <div className="rounded-lg border bg-card">
+          {loadError ? (
+            <div className="border-b bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              データの取得に失敗しました: {loadError}
+            </div>
+          ) : null}
           <Table>
             <TableHeader>
               <TableRow>
@@ -94,5 +109,3 @@ export default async function RacesPage() {
     </main>
   );
 }
-
-
