@@ -18,6 +18,48 @@ class RaceResultRow:
     horse_name: str
 
 
+def _normalize_text(text: str) -> str:
+    return re.sub(r"\s+", " ", text.replace("\xa0", " ")).strip()
+
+
+def _extract_first_non_empty_text(soup: BeautifulSoup, selectors: list[str]) -> str | None:
+    for selector in selectors:
+        el = soup.select_one(selector)
+        if el is None:
+            continue
+        text = _normalize_text(el.get_text(" ", strip=True))
+        if text:
+            return text
+    return None
+
+
+def _extract_race_name(soup: BeautifulSoup, race_id: str) -> str:
+    raw_name = _extract_first_non_empty_text(
+        soup,
+        ["h1", ".RaceName", "meta[property='og:title']", "title"],
+    )
+    if not raw_name:
+        return f"race:{race_id}"
+
+    # Drop common suffixes in title text.
+    name = raw_name.split("|", 1)[0].strip()
+    name = name.split("｜", 1)[0].strip()
+    return name or f"race:{race_id}"
+
+
+def _extract_course(data_text: str) -> str:
+    courses = ["札幌", "函館", "福島", "新潟", "東京", "中山", "中京", "京都", "阪神", "小倉"]
+    pattern = r"\d+回\s*(" + "|".join(courses) + r")\s*\d+日目"
+    m = re.search(pattern, data_text)
+    if m:
+        return m.group(1)
+
+    for c in courses:
+        if c in data_text:
+            return c
+    return "UNKNOWN"
+
+
 def _extract_race_id_from_url(url: str) -> str:
     # netkeiba-like patterns: .../race/202305030811/ or ?race_id=...
     m = re.search(r"race_id=(\d+)", url)
@@ -41,19 +83,13 @@ def parse_race_metadata(html: str, *, url: str) -> RaceRecord:
 
     race_id = _extract_race_id_from_url(url)
 
-    # race_name
-    race_name = (
-        (soup.select_one("h1") or soup.select_one(".RaceName") or soup.select_one("title"))
-        .get_text(strip=True)
-        if (soup.select_one("h1") or soup.select_one(".RaceName") or soup.select_one("title"))
-        else f"race:{race_id}"
-    )
+    race_name = _extract_race_name(soup, race_id)
 
     # netkeiba-like race data text blob
     data_text = ""
     data_el = soup.select_one(".RaceData01") or soup.select_one(".RaceData02") or soup.select_one("body")
     if data_el:
-        data_text = data_el.get_text(" ", strip=True)
+        data_text = _normalize_text(data_el.get_text(" ", strip=True))
 
     # held_on (YYYY年MM月DD日)
     held_on = date.today()
@@ -64,17 +100,24 @@ def parse_race_metadata(html: str, *, url: str) -> RaceRecord:
     # track_type + distance_m (芝2000m / ダ1800m etc.)
     track_type = "UNKNOWN"
     distance_m = 1200
-    m = re.search(r"(芝|ダート|ダ)\s*(\d{3,4})m", data_text)
+    m = re.search(r"(芝|ダート|ダ)[^0-9]{0,10}?(\d{3,4})m", data_text)
     if m:
         track_type = "ダート" if m.group(1) in ("ダ", "ダート") else "芝"
         distance_m = int(m.group(2))
 
-    # course (開催場) - very rough guess: look for common JRA courses in text
-    course = "UNKNOWN"
-    for c in ["札幌", "函館", "福島", "新潟", "東京", "中山", "中京", "京都", "阪神", "小倉"]:
-        if c in data_text:
-            course = c
-            break
+    # course (開催場)
+    # Prefer explicit patterns like "3回東京8日目" to avoid false positives from side links.
+    course = _extract_course(data_text)
+
+    weather = None
+    m = re.search(r"天候\s*[:：]\s*([^\s/]+)", data_text)
+    if m:
+        weather = m.group(1).strip()
+
+    track_condition = None
+    m = re.search(r"(?:芝|ダート|ダ)\s*[:：]\s*([^\s/]+)", data_text)
+    if m:
+        track_condition = m.group(1).strip()
 
     return RaceRecord(
         race_id=race_id,
@@ -83,6 +126,8 @@ def parse_race_metadata(html: str, *, url: str) -> RaceRecord:
         course=course,
         track_type=track_type,
         distance_m=distance_m,
+        weather=weather,
+        track_condition=track_condition,
         raw_source_url=url,
     )
 
@@ -181,5 +226,3 @@ def rows_to_dataframe(rows: Iterable[RaceResultRow]) -> pd.DataFrame:
     return pd.DataFrame(
         [{"finish_position": r.finish_position, "horse_name": r.horse_name} for r in rows]
     )
-
-

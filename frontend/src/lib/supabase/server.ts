@@ -12,10 +12,13 @@ export function createSupabaseServerClient() {
   const anonKey = getEnv("SUPABASE_ANON_KEY");
 
   return createClient(url, anonKey, {
+    global: {
+      // Avoid stale server fetch cache during local development.
+      fetch: (input, init) => fetch(input, { ...init, cache: "no-store" })
+    },
     auth: {
       persistSession: false
     }
   });
 }
-
 
